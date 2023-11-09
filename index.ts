@@ -2,13 +2,9 @@ import * as Nostr from "nostr-tools";
 import { RelayPool } from "nostr-relaypool";
 import dotenv from "dotenv";
 import { Event, finishEvent } from "nostr-tools";
-import { EventEmitter } from 'events';
-
-const eventEmitter = new EventEmitter();
 
 dotenv.config();
 
-const MyPubkey = process.env.BOT_PUBKEY;
 const MySecret = process.env.BOT_SECRET;
 
 /** Get POW difficulty from a Nostr hex ID. */
@@ -114,6 +110,22 @@ function filterEvent(event: Nostr.Event): boolean {
     eventCount = 0;
     lastAdjustmentTime = currentTime;
     console.log('Current difficulty: ', difficulty);
+
+    let metadataTemplate = 
+    {
+      pubkey: "3ff4b1b836c7e63ee4acf391270d8660e1b7af56ba9474b92838bb079e75287d",
+      created_at: Math.floor(Date.now() / 1000),
+      kind: 0,
+      tags: [],
+      content: `{"banner":"https://m.primal.net/HPij.jpg","website":"get-tao.app","lud06":"","nip05":"","lud16":"smolgrrr@getalby.com","picture":"https://m.primal.net/HPik.jpg","display_name":"TAO reposts","about":"i repost from the TAO global feed every 30-minutes (and by de-facto any PoW posts). current difficulty: ${difficulty}","name":"TAO"}`,
+    }
+    const metadataEvent = finishEvent(metadataTemplate, MySecret as string)
+
+    const validateEvent = Nostr.validateEvent(metadataEvent);
+    const verifySignature = Nostr.verifySignature(metadataEvent);
+    console.log(JSON.stringify({ validateEvent, verifySignature, metadataEvent }));
+  
+    pool.publish(metadataEvent as Event, feedRelays);
   }
 
   if (getPow(event.id) > difficulty && !event.tags.some((tag) => tag[0] === "e")) {
