@@ -69,7 +69,8 @@ const feedRelays = [
   "wss://nostr.mom",
   "wss://relay.nostr.bg",
   "wss://nos.lol",
-  "wss://powrelay.xyz"
+  "wss://powrelay.xyz",
+  "wss://nostr.mutinywallet.com"
 ];
 
 pool.subscribe(
