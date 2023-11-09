@@ -86,7 +86,14 @@ pool.subscribe(
       repostEvent(event);
     }
   }
-);
+)
+
+pool.onerror((err, relayUrl) => {
+  console.log("RelayPool error", err, " from relay ", relayUrl);
+});
+pool.onnotice((relayUrl, notice) => {
+  console.log("RelayPool notice", notice, " from relay ", relayUrl);
+});
 
 let lastRepostTime = 0;
 let difficulty = 20;
