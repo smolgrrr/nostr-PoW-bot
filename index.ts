@@ -125,7 +125,7 @@ function filterEvent(event: Nostr.Event): boolean {
       created_at: Math.floor(Date.now() / 1000),
       kind: 0,
       tags: [],
-      content: `{"banner":"https://m.primal.net/HPij.jpg","website":"get-tao.app","lud06":"","nip05":"","lud16":"smolgrrr@getalby.com","picture":"https://m.primal.net/HPik.jpg","display_name":"TAO reposts","about":"i repost from the TAO global feed every 30-minutes (and by de-facto any PoW posts). current difficulty: ${difficulty}","name":"TAO"}`,
+      content: `{"banner":"https://m.primal.net/HPij.jpg","website":"getwired.app","lud06":"","nip05":"","lud16":"smolgrrr@getalby.com","picture":"https://i0.wp.com/drunkenanimeblog.com/wp-content/uploads/2017/07/1473031501_lain.gif","display_name":"Wired Reposts","about":"i repost from the Wired global feed every 30-minutes. current difficulty: ${difficulty}","name":"Wired Reposts"}`,
     }
     const metadataEvent = finishEvent(metadataTemplate, MySecret as string)
 
