@@ -70,7 +70,8 @@ const feedRelays = [
   "wss://relay.nostr.bg",
   "wss://nos.lol",
   "wss://powrelay.xyz",
-  "wss://nostr.mutinywallet.com"
+  "wss://nostr.mutinywallet.com",
+  "wss://blastr.f7z.xyz"
 ];
 
 pool.subscribe(
@@ -136,7 +137,7 @@ function filterEvent(event: Nostr.Event): boolean {
     pool.publish(metadataEvent as Event, feedRelays);
   }
 
-  if (getPow(event.id) > difficulty && !event.tags.some((tag) => tag[0] === "e")) {
+  if (getPow(event.id) > difficulty && !event.tags.some((tag) => tag[0] === "e" && event.tags.some((tag) => tag[0] === "client" && tag[1] === 'getwired.app'))) {
     console.log('found PoW event: ', event.id)
     eventCount++;
     return true;
