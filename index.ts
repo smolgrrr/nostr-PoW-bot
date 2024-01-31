@@ -137,7 +137,7 @@ function filterEvent(event: Nostr.Event): boolean {
     pool.publish(metadataEvent as Event, feedRelays);
   }
 
-  if (getPow(event.id) > difficulty && !event.tags.some((tag) => tag[0] === "e" && event.tags.some((tag) => tag[0] === "client" && tag[1] === 'getwired.app'))) {
+  if (getPow(event.id) > difficulty && !event.tags.some((tag) => tag[0] === "e") && event.tags.some((tag) => tag[0] === "client" && tag[1] === 'getwired.app')) {
     console.log('found PoW event: ', event.id)
     eventCount++;
     return true;
