@@ -1,11 +1,25 @@
 import * as Nostr from "nostr-tools";
-import { RelayPool } from "nostr-relaypool";
 import dotenv from "dotenv";
-import { Event, finishEvent } from "nostr-tools";
+import { Event } from "nostr-tools";
+import { SimplePool, finalizeEvent } from "nostr-tools";
 
 dotenv.config();
 
 const MySecret = process.env.BOT_SECRET;
+
+function hexStringToUint8Array(hexString: string): Uint8Array {
+  if (hexString.length % 2 !== 0) {
+      throw new Error('Invalid hex string');
+  }
+
+  const array = new Uint8Array(hexString.length / 2);
+
+  for (let i = 0; i < hexString.length; i += 2) {
+      array[i / 2] = parseInt(hexString.substr(i, 2), 16);
+  }
+
+  return array;
+}
 
 /** Get POW difficulty from a Nostr hex ID. */
 function getPow(hex: string): number {
@@ -24,44 +38,8 @@ function getPow(hex: string): number {
   return count
 }
 
-type RepostEventTemplate = {
-  /**
-   * Pass only non-nip18 tags if you have to.
-   * Nip18 tags ('e' and 'p' tags pointing to the reposted event) will be added automatically.
-   */
-  tags?: string[][]
 
-  /**
-   * Pass an empty string to NOT include the stringified JSON of the reposted event.
-   * Any other content will be ignored and replaced with the stringified JSON of the reposted event.
-   * @default Stringified JSON of the reposted event
-   */
-  content?: ''
-
-  created_at: number
-}
-
-function finishRepostEvent(
-  t: RepostEventTemplate,
-  reposted: Event<number>,
-  relayUrl: string,
-  privateKey: string,
-): Event {
-  return finishEvent(
-    {
-      kind: 6,
-      tags: [...(t.tags ?? []), ['e', reposted.id, relayUrl], ['p', reposted.pubkey]],
-      content: t.content === '' ? '' : JSON.stringify(reposted),
-      created_at: t.created_at,
-    },
-    privateKey,
-  )
-}
-
-const pool = new RelayPool(undefined, {
-  autoReconnect: true,
-  logErrorsAndNotices: true,
-});
+const pool = new SimplePool()
 
 const feedRelays = [
   "wss://relay.snort.social",
@@ -71,30 +49,29 @@ const feedRelays = [
   "wss://nos.lol",
   "wss://powrelay.xyz",
   "wss://nostr.mutinywallet.com",
-  "wss://blastr.f7z.xyz"
 ];
 
-pool.subscribe(
+let h = pool.subscribeMany(
+  [...feedRelays],
   [
     {
+      ids: ["0000"],
       kinds: [1],
       since: Math.floor((Date.now() * 0.001) - (60 * 60)),
     },
   ],
-  feedRelays,
-  (event, _isAfterEose, _relayURL) => {
-    if (filterEvent(event)) {
-      repostEvent(event);
+  {
+    onevent(event) {
+      console.log('we got the event we wanted:', event)
+      if (filterEvent(event)) {
+        repostEvent(event);
+      }
+    },
+    oneose() {
+      h.close()
     }
   }
 )
-
-pool.onerror((err, relayUrl) => {
-  console.log("RelayPool error", err, " from relay ", relayUrl);
-});
-pool.onnotice((relayUrl, notice) => {
-  console.log("RelayPool notice", notice, " from relay ", relayUrl);
-});
 
 let lastRepostTime = 0;
 let difficulty = 20;
@@ -120,21 +97,21 @@ function filterEvent(event: Nostr.Event): boolean {
     lastAdjustmentTime = currentTime;
     console.log('Current difficulty: ', difficulty);
 
-    let metadataTemplate = 
-    {
-      pubkey: "3ff4b1b836c7e63ee4acf391270d8660e1b7af56ba9474b92838bb079e75287d",
-      created_at: Math.floor(Date.now() / 1000),
-      kind: 0,
-      tags: [],
-      content: `{"banner":"https://m.primal.net/HPij.jpg","website":"getwired.app","lud06":"","nip05":"","lud16":"smolgrrr@getalby.com","picture":"https://i0.wp.com/drunkenanimeblog.com/wp-content/uploads/2017/07/1473031501_lain.gif","display_name":"Wired Reposts","about":"i repost from the Wired global feed every 30-minutes. current difficulty: ${difficulty}","name":"Wired Reposts"}`,
-    }
-    const metadataEvent = finishEvent(metadataTemplate, MySecret as string)
+    // let metadataTemplate = 
+    // {
+    //   pubkey: "3ff4b1b836c7e63ee4acf391270d8660e1b7af56ba9474b92838bb079e75287d",
+    //   created_at: Math.floor(Date.now() / 1000),
+    //   kind: 0,
+    //   tags: [],
+    //   content: `{"banner":"https://m.primal.net/HPij.jpg","website":"getwired.app","lud06":"","nip05":"","lud16":"smolgrrr@getalby.com","picture":"https://i0.wp.com/drunkenanimeblog.com/wp-content/uploads/2017/07/1473031501_lain.gif","display_name":"Wired Reposts","about":"i repost from the Wired global feed every 30-minutes. current difficulty: ${difficulty}","name":"Wired Reposts"}`,
+    // }
+    // const metadataEvent = finishEvent(metadataTemplate, MySecret as string)
 
-    const validateEvent = Nostr.validateEvent(metadataEvent);
-    const verifySignature = Nostr.verifySignature(metadataEvent);
-    console.log(JSON.stringify({ validateEvent, verifySignature, metadataEvent }));
+    // const validateEvent = Nostr.validateEvent(metadataEvent);
+    // const verifySignature = Nostr.verifySignature(metadataEvent);
+    // console.log(JSON.stringify({ validateEvent, verifySignature, metadataEvent }));
   
-    pool.publish(metadataEvent as Event, feedRelays);
+    // pool.publish(metadataEvent as Event, feedRelays);
   }
 
   if (getPow(event.id) > difficulty && !event.tags.some((tag) => tag[0] === "e") && event.tags.some((tag) => tag[0] === "client" && tag[1] === 'getwired.app')) {
@@ -158,15 +135,14 @@ function repostEvent(event: Nostr.Event): void {
   console.log(JSON.stringify({ event }));
 
   const template = {
+    kind: 6,
+    tags: [['e', event.id], ['p', event.pubkey]],
+    content: JSON.stringify(event),
     created_at: Math.floor(Date.now() / 1000),
   }
-  const repostEvent = finishRepostEvent(template, event, feedRelays[feedRelays.length - 1], MySecret as string)
+  const repostEvent = finalizeEvent(template, hexStringToUint8Array(MySecret as string))
 
-  const validateEvent = Nostr.validateEvent(repostEvent);
-  const verifySignature = Nostr.verifySignature(repostEvent);
-  console.log(JSON.stringify({ validateEvent, verifySignature, repostEvent }));
-
-  pool.publish(repostEvent as Event, feedRelays);
+  pool.publish(feedRelays, repostEvent)
 
   // Update the last repost time
   lastRepostTime = currentTime;
