@@ -63,7 +63,7 @@ const relayConnect = async () => pool.subscribeMany(
   ],
   {
     onevent(event) {
-      console.log('we got the event we wanted:', event)
+      console.log('we got the event we wanted:', event.id)
       if (filterEvent(event)) {
         repostEvent(event);
       }
@@ -73,10 +73,11 @@ const relayConnect = async () => pool.subscribeMany(
       clearTimeout(timer);
       timer = setTimeout(async () => {
         relayConnect()
-      }, 300000);
+      }, 900000);
     },
   }
 )
+relayConnect();
 
 let lastRepostTime = 0;
 let difficulty = 20;
@@ -128,7 +129,7 @@ function filterEvent(event: Nostr.Event): boolean {
   return false;
 }
 
-function repostEvent(event: Nostr.Event): void {
+async function repostEvent(event: Nostr.Event): Promise<void> { // Mark function as async
   const currentTime = Date.now();
   const thirtyMinutesInMilliseconds = 30 * 60 * 1000;
 
@@ -147,7 +148,12 @@ function repostEvent(event: Nostr.Event): void {
   }
   const repostEvent = finalizeEvent(template, hexStringToUint8Array(MySecret as string))
 
-  pool.publish(feedRelays, repostEvent)
+  try {
+    await pool.publish(feedRelays, repostEvent);
+  } catch (error) {
+    console.error('Error publishing event:', error);
+    // Handle the error as needed
+  }
 
   // Update the last repost time
   lastRepostTime = currentTime;
