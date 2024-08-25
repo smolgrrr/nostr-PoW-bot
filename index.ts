@@ -43,40 +43,48 @@ let timer: NodeJS.Timeout;
 const pool = new SimplePool()
 
 const feedRelays = [
-  "wss://relay.snort.social",
   "wss://nostr.bitcoiner.social",
   "wss://nostr.mom",
   "wss://relay.nostr.bg",
   "wss://nos.lol",
-  "wss://powrelay.xyz",
   "wss://nostr.mutinywallet.com",
 ];
 
-const relayConnect = async () => pool.subscribeMany(
-  [...feedRelays],
-  [
-    { 
-      ids:["0000"],
-      kinds: [1],
-      since: Math.floor((Date.now() * 0.001) - (6 * 60 * 60)),
-    },
-  ],
-  {
-    onevent(event) {
-      console.log('we got the event we wanted:', event.id)
-      if (filterEvent(event)) {
-        repostEvent(event);
+const relayConnect = async () => {
+  try {
+    await pool.subscribeMany(
+      [...feedRelays],
+      [
+        { 
+          ids:["0000"],
+          kinds: [1],
+          since: Math.floor((Date.now() * 0.001) - (6 * 60 * 60)),
+        },
+      ],
+      {
+        onevent(event) {
+          console.log('we got the event we wanted:', event.id)
+          if (filterEvent(event)) {
+            repostEvent(event);
+          }
+        },
+        onclose: (reason) => {
+          console.log(`relay connection closed at ${Date.now()}:${reason}`);
+          clearTimeout(timer);
+          timer = setTimeout(async () => {
+            relayConnect()
+          }, 900000); // Attempt to reconnect after 15 minutes
+        },
       }
-    },
-    onclose: (reason) => {
-      console.log(`relay connection closed at ${Date.now()}:${reason}`);
-      clearTimeout(timer);
-      timer = setTimeout(async () => {
-        relayConnect()
-      }, 900000);
-    },
+    );
+  } catch (error) {
+    console.error('Error with relay connection:', error);
+    clearTimeout(timer);
+    timer = setTimeout(async () => {
+      relayConnect()
+    }, 900000); // Attempt to reconnect after 15 minutes if an error occurs
   }
-)
+}
 relayConnect();
 
 let lastRepostTime = 0;
