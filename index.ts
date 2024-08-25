@@ -38,6 +38,7 @@ function getPow(hex: string): number {
   return count
 }
 
+let timer: NodeJS.Timeout;
 
 const pool = new SimplePool()
 
@@ -51,13 +52,13 @@ const feedRelays = [
   "wss://nostr.mutinywallet.com",
 ];
 
-let h = pool.subscribeMany(
+const relayConnect = async () => pool.subscribeMany(
   [...feedRelays],
   [
-    {
-      ids: ["0000"],
+    { 
+      ids:["0000"],
       kinds: [1],
-      since: Math.floor((Date.now() * 0.001) - (60 * 60)),
+      since: Math.floor((Date.now() * 0.001) - (6 * 60 * 60)),
     },
   ],
   {
@@ -67,9 +68,13 @@ let h = pool.subscribeMany(
         repostEvent(event);
       }
     },
-    oneose() {
-      h.close()
-    }
+    onclose: (reason) => {
+      console.log(`relay connection closed at ${Date.now()}:${reason}`);
+      clearTimeout(timer);
+      timer = setTimeout(async () => {
+        relayConnect()
+      }, 300000);
+    },
   }
 )
 
